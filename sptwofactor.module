@@ -1,0 +1,346 @@
+<?php
+/**
+ * --------------------------------------------------------------------------
+ * Two factor authentication voor CiviCRM op SPnet
+ * kevin@levity.nl, 2014
+ * --------------------------------------------------------------------------
+ */
+
+/**
+ * Implements hook_init: slaat aan op /civicrm
+ */
+function sptwofactor_init() {
+
+	if (strpos(current_path(), 'civicrm') !== false) {
+		sptwofactor_check_auth();
+	}
+}
+
+/**
+ * Controleer of deze gebruiker nu moet authenticeren
+ * @return bool Success
+ */
+function sptwofactor_check_auth() {
+
+	global $user;
+
+	if (!variable_get('sptwofactor_enabled'))
+		return true;
+
+	if (_sptwofactor_ip_exception(ip_address()))
+		return true;
+
+	if (array_key_exists('sptwofactor_last_seen', $user->data)) {
+		$last_auth = $user->data['sptwofactor_last_seen'];
+
+		if ($last_auth > (time() - variable_get('sptwofactor_validity'))) {
+			$user->data['sptwofactor_last_seen'] = time();
+			user_save($user);
+			return true;
+		}
+	}
+
+	$user->data['sptwofactor_code'] = null;
+	user_save($user);
+
+	return drupal_goto('user/smsauth');
+}
+
+/**
+ * Implements hook_menu: pagina user/smsauth en admin-opties
+ * @return array Menu items
+ */
+function sptwofactor_menu() {
+
+	$items = [];
+
+	$items['user/smsauth'] = array(
+		'title'           => 'SMS-authenticatie',
+		'page callback'   => 'drupal_get_form',
+		'page arguments'  => array('sptwofactor_form'),
+		'access callback' => array('access content'),
+	);
+
+	$items['admin/config/sp'] = array(
+		'title'            => 'SP',
+		'description'      => 'SP-specifieke instellingen',
+		'weight'           => - 8,
+		'page callback'    => 'sptwofactor_admin_block',
+		'access arguments' => array('access administration pages'),
+	);
+
+	$items['admin/config/sp/twofactor'] = array(
+		'title'            => 'Two Factor Authentication',
+		'description'      => 'Instellingen voor two factor authentication.',
+		'type'             => MENU_NORMAL_ITEM,
+		'page callback'    => 'drupal_get_form',
+		'page arguments'   => array('sptwofactor_admin_settings_form'),
+		'access arguments' => array('access administration pages'),
+	);
+
+	$items['admin/config/sp/twofactor/settings'] = array(
+		'title'            => 'Instellingen',
+		'type'             => MENU_DEFAULT_LOCAL_TASK,
+		'access arguments' => array('access administration pages'),
+	);
+
+	return $items;
+}
+
+/**
+ * Frontend-form voor SMS-authenticatie
+ */
+function sptwofactor_form($form, &$form_state) {
+
+	$phoneNumber = _sptwofactor_get_phonenumber();
+	if (!$phoneNumber) {
+
+		$form['sptwofactor_description'] = [
+			'#markup' => 'Er is geen mobiel nummer van je bekend. Je kunt daarom niet inloggen.',
+		];
+
+	} else {
+
+		if (empty($_POST)) {
+			$status = _spform_send_code($phoneNumber);
+		} else {
+			$status = true;
+		}
+
+		if (!$status) {
+
+			$form['sptwofactor_description'] = [
+				'#markup' => 'Er is een fout opgetreden bij het versturen van de transactiecode.',
+			];
+
+		} else {
+
+			$form['sptwofactor_description'] = array(
+				'#markup' => 'Vul de transactiecode in, die zojuist naar je mobiele telefoon (' . $phoneNumber . ') is gestuurd.',
+			);
+
+			$form['sptwofactor_code'] = array(
+				'#type'  => 'textfield',
+				'#title' => 'Transactiecode',
+			);
+
+			$form['sptwofactor_submit'] = array(
+				'#type'  => 'submit',
+				'#value' => 'Inloggen',
+			);
+		}
+	}
+
+	return $form;
+}
+
+function sptwofactor_form_submit($form, &$form_state) {
+
+	global $user;
+	$codeSaved = $user->data['sptwofactor_code'];
+	$codeEntered = $form_state['values']['sptwofactor_code'];
+
+	if (!$codeSaved) {
+		drupal_set_message('Er is een fout opgetreden: geen code bekend.', 'error');
+		return drupal_goto('user/smsauth');
+	}
+
+	if ($codeSaved != trim($codeEntered)) {
+		drupal_set_message('De code die je hebt ingevoerd is niet geldig. Probeer het opnieuw.', 'error');
+		return drupal_goto('user/smsauth');
+	}
+
+	$user->data['sptwofactor_last_seen'] = time();
+	user_save($user);
+
+	drupal_goto('civicrm');
+}
+
+/**
+ * Admin-instellingen
+ * @return mixed System settings from
+ */
+function sptwofactor_admin_settings_form() {
+
+	$form = [];
+
+	$form['sptwofactor_description'] = [
+		'#markup' => '<h3>Instellingen</h3><p>Stel hieronder two factor authentication voor CiviCRM in.</p>',
+	];
+
+	$form['sptwofactor_enabled'] = [
+		'#type'          => 'checkbox',
+		'#title'         => 'SMS-authenticatie ingeschakeld',
+		'#default_value' => variable_get('sptwofactor_enabled', 1),
+		'#description'   => 'Schakel SMS-authenticatie in of uit voor de gehele site.',
+		'#required'      => false,
+	];
+
+	$form['sptwofactor_validity'] = [
+		'#type'          => 'textfield',
+		'#title'         => 'Tijdsduur',
+		'#default_value' => variable_get('sptwofactor_validity', 3600),
+		'#description'   => 'Na hoeveel seconden inactiviteit moet de gebruiker opnieuw authenticeren?',
+		'#required'      => true,
+	];
+
+	$form['sptwofactor_sms_url'] = [
+		'#type'          => 'textfield',
+		'#title'         => 'API URL',
+		'#default_value' => variable_get('sptwofactor_sms_url', 'https://api.messagebird.com/xml/sms/'),
+		'#description'   => 'API endpoint voor de SMS-dienst',
+		'#required'      => true,
+	];
+
+	$form['sptwofactor_sms_user'] = [
+		'#type'          => 'textfield',
+		'#title'         => 'Gebruikersnaam',
+		'#default_value' => variable_get('sptwofactor_sms_user', 'systeembeheersp'),
+		'#description'   => 'Gebruikersnaam voor de SMS-dienst',
+		'#required'      => true,
+	];
+
+	$form['sptwofactor_sms_pass'] = [
+		'#type'          => 'textfield',
+		'#title'         => 'Wachtwoord',
+		'#default_value' => variable_get('sptwofactor_sms_pass', ''),
+		'#description'   => 'Wachtwoord voor de SMS-dienst',
+		'#required'      => true,
+	];
+
+	$form['sptwofactor_allow_ip'] = [
+		'#type'          => 'textarea',
+		'#title'         => 'Uitgezonderde IP\'s',
+		'#default_value' => variable_get('sptwofactor_allow_ip', ''),
+		'#description'   => 'IP-adressen die uitgezonderd zijn van two factor authentication (een per regel)',
+		'#required'      => false,
+	];
+
+	return system_settings_form($form);
+}
+
+/**
+ * Get API object
+ * @return civicrm_api3 CiviCRM API
+ */
+function _sptwofactor_civicrm_api() {
+	civicrm_initialize();
+	require_once 'api/class.api.php';
+
+	return new civicrm_api3;
+}
+
+/**
+ * Check if IP address is excluded from authentication
+ *
+ * @param string $ip IP address
+ *
+ * @return bool Is excluded
+ */
+function _sptwofactor_ip_exception($ip) {
+
+	$ips_allowed = variable_get('sptwofactor_allow_ip');
+
+	if (!$ips_allowed)
+		return false;
+	$ips_allowed = explode("\n", $ips_allowed);
+	foreach ($ips_allowed as $ip_allowed) {
+		if (trim($ip_allowed) == $ip)
+			return true;
+	}
+
+	return false;
+}
+
+/**
+ * Get phone number from CiviCRM API and cache it in $user->data
+ * @return mixed Phone number
+ */
+function _sptwofactor_get_phonenumber() {
+
+	global $user;
+
+	if (!$user->data['sptwofactor_phone']) {
+
+		$api = _sptwofactor_civicrm_api();
+		$api->UFMatch->Getsingle([
+			'uf_id' => $user->uid,
+		]);
+		$contact = $api->result();
+		if (!$contact || $contact->is_error) {
+			drupal_set_message('Two factor authentication niet mogelijk: geen CiviCRM-account voor deze gebruiker.', 'error');
+			return false;
+		} else {
+
+			$api->Phone->Get([
+				'contact_id'    => $contact->contact_id,
+				'phone_type_id' => 2,
+			]);
+			$phone = $api->result();
+			if (!$phone || $phone->is_error || $phone->count == 0) {
+				drupal_set_message('Two factor authentication niet mogelijk: geen mobiel nummer voor deze gebruiker.', 'error');
+				return false;
+			}
+
+			foreach ($phone->values as $value) {
+				if ($value->phone_numeric) {
+					$phoneNumber = $value->phone_numeric;
+
+					$user->data['sptwofactor_phone'] = $phoneNumber;
+					user_save($user);
+				}
+			}
+		}
+	}
+
+	return $user->data['sptwofactor_phone'];
+}
+
+/**
+ * Send auth code to $phoneNumber and save it to $user->data
+ *
+ * @param $phoneNumber Phone number
+ *
+ * @return bool Success
+ */
+function _spform_send_code($phoneNumber) {
+
+	global $user;
+
+	$url = variable_get('sptwofactor_sms_url');
+	$smsuser = variable_get('sptwofactor_sms_user');
+	$smspass = variable_get('sptwofactor_sms_pass');
+
+	if (!$url || !$smsuser || !$smspass) {
+		drupal_set_message('Two factor authentication is niet ingesteld.', 'error');
+		return false;
+	}
+
+	$code = $user->data['sptwofactor_code'];
+	if (!$code) {
+		$code = mt_rand(100000, 999999);
+
+		$user->data['sptwofactor_code'] = $code;
+		user_save($user);
+	}
+
+	// Mollie API, zie docs
+	$params = "username=" . $smsuser . "&md5_password=" . $smspass . "&originator=SPnet&recipients=" . $phoneNumber . "&message=Je transactiecode is: " . $code . "&gateway=1";
+	$ch = curl_init();
+	curl_setopt($ch, CURLOPT_URL, $url);
+	curl_setopt($ch, CURLOPT_POST, true);
+	curl_setopt($ch, CURLOPT_POSTFIELDS, $params);
+	curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+	$output = simplexml_load_string(curl_exec($ch));
+	curl_close($ch);
+
+	switch ($output->item->resultcode) {
+		case 10:
+			return true;
+			break;
+		default:
+			drupal_set_message("Er is een fout opgetreden bij het versturen van een login-sms. Resultaatcode was " . $output->item->resultcode . " - " . $output->item->resultmessage, 'error');
+			return false;
+	}
+
+}
