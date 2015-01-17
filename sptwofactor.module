@@ -58,7 +58,7 @@ function sptwofactor_menu() {
 		'title'           => 'SMS-authenticatie',
 		'page callback'   => 'drupal_get_form',
 		'page arguments'  => array('sptwofactor_form'),
-		'access callback' => array('access content'),
+		'access arguments' => array('access content'),
 	);
 
 	$items['admin/config/sp'] = array(
@@ -165,7 +165,7 @@ function sptwofactor_admin_settings_form() {
 	$form = [];
 
 	$form['sptwofactor_description'] = [
-		'#markup' => '<h3>Instellingen</h3><p>Stel hieronder two factor authentication voor CiviCRM in.</p>',
+		'#markup' => '<h3>Instellingen</h3><p>Stel hieronder two factor authentication voor CiviCRM in.<br />Deze module zorgt er op dit moment (alleen) voor dat voor alle URL\'s onder /civicrm/ SMS-authenticatie vereist is.</p>',
 	];
 
 	$form['sptwofactor_enabled'] = [
