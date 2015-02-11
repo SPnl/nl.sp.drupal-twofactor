@@ -24,14 +24,18 @@ function sptwofactor_check_auth() {
 
 	global $user;
 
-	if(!$user || !$user->uid)
+	if(!$user) {
+		watchdog('sptwofactor', 'User not set, skipping two factor authentication', NULL, WATCHDOG_DEBUG);
 		return true;
+	}
 
 	if (!variable_get('sptwofactor_enabled'))
 		return true;
 
-	if (_sptwofactor_ip_exception(ip_address()))
+	if (_sptwofactor_ip_exception(ip_address())) {
+		watchdog('sptwofactor', 'IP exception for ' . ip_address() . ', skipping two factor authentication', NULL, WATCHDOG_DEBUG);
 		return true;
+	}
 
 	if (array_key_exists('sptwofactor_last_seen', $user->data)) {
 		$last_auth = $user->data['sptwofactor_last_seen'];
@@ -39,6 +43,8 @@ function sptwofactor_check_auth() {
 		if ($last_auth > (time() - variable_get('sptwofactor_validity'))) {
 			$user->data['sptwofactor_last_seen'] = time();
 			user_save($user);
+
+			watchdog('sptwofactor', 'Updating last seen for user ' . $user->uid, NULL, WATCHDOG_DEBUG);
 			return true;
 		}
 	}
@@ -46,6 +52,7 @@ function sptwofactor_check_auth() {
 	$user->data['sptwofactor_code'] = null;
 	user_save($user);
 
+	watchdog('sptwofactor', 'Redirecting user to user/smsauth', NULL, WATCHDOG_DEBUG);
 	return drupal_goto('user/smsauth');
 }
 
@@ -101,6 +108,7 @@ function sptwofactor_form($form, &$form_state) {
 		$form['sptwofactor_description'] = [
 			'#markup' => 'Er is geen mobiel nummer van je bekend. Je kunt daarom niet inloggen.',
 		];
+		watchdog('sptwofactor', 'User cannot authenticate, no phone number set.', NULL, WATCHDOG_DEBUG);
 
 	} else {
 
@@ -145,17 +153,20 @@ function sptwofactor_form_submit($form, &$form_state) {
 
 	if (!$codeSaved) {
 		drupal_set_message('Er is een fout opgetreden: geen code bekend.', 'error');
+		watchdog('sptwofactor', 'Error: no code set', NULL, WATCHDOG_DEBUG);
 		return drupal_goto('user/smsauth');
 	}
 
 	if ($codeSaved != trim($codeEntered)) {
 		drupal_set_message('De code die je hebt ingevoerd is niet geldig. Probeer het opnieuw.', 'error');
+		watchdog('sptwofactor', 'User entered invalid code (' . $codeSaved . ' vs ' . $codeEntered . ')', NULL, WATCHDOG_DEBUG);
 		return drupal_goto('user/smsauth');
 	}
 
 	$user->data['sptwofactor_last_seen'] = time();
 	user_save($user);
 
+	watchdog('sptwofactor', 'User entered valid code (' . $codeEntered . '), logging in', NULL, WATCHDOG_DEBUG);
 	drupal_goto('civicrm');
 }
 
@@ -316,6 +327,7 @@ function _spform_send_code($phoneNumber) {
 
 	if (!$url || !$smsuser || !$smspass) {
 		drupal_set_message('Two factor authentication is niet ingesteld.', 'error');
+		watchdog('sptwofactor', 'Two factor authentication has not been configured.', NULL, WATCHDOG_WARNING);
 		return false;
 	}
 
@@ -339,10 +351,12 @@ function _spform_send_code($phoneNumber) {
 
 	switch ($output->item->resultcode) {
 		case 10:
+			watchdog('sptwofactor', 'Sent SMS', NULL, WATCHDOG_DEBUG);
 			return true;
 			break;
 		default:
 			drupal_set_message("Er is een fout opgetreden bij het versturen van een login-sms. Resultaatcode was " . $output->item->resultcode . " - " . $output->item->resultmessage, 'error');
+			watchdog('sptwofactor', 'Could not send SMS! Error ' . $output->item->resultcode . ' - ' . $output->item->resultmessage, NULL, WATCHDOG_WARNING);
 			return false;
 	}
 
