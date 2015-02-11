@@ -24,6 +24,9 @@ function sptwofactor_check_auth() {
 
 	global $user;
 
+	if(!$user || !$user->uid)
+		return true;
+
 	if (!variable_get('sptwofactor_enabled'))
 		return true;
 
