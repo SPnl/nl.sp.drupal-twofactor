@@ -25,7 +25,7 @@ function sptwofactor_check_auth() {
 	global $user;
 
 	if(!$user) {
-		watchdog('sptwofactor', 'User not set, skipping two factor authentication', NULL, WATCHDOG_DEBUG);
+		// watchdog('sptwofactor', 'User not set, skipping two factor authentication', NULL, WATCHDOG_DEBUG);
 		return true;
 	}
 
@@ -33,7 +33,7 @@ function sptwofactor_check_auth() {
 		return true;
 
 	if (_sptwofactor_ip_exception(ip_address())) {
-		watchdog('sptwofactor', 'IP exception for ' . ip_address() . ', skipping two factor authentication', NULL, WATCHDOG_DEBUG);
+		// watchdog('sptwofactor', 'IP exception for ' . ip_address() . ', skipping two factor authentication', NULL, WATCHDOG_DEBUG);
 		return true;
 	}
 
@@ -44,7 +44,7 @@ function sptwofactor_check_auth() {
 			$user->data['sptwofactor_last_seen'] = time();
 			user_save($user);
 
-			watchdog('sptwofactor', 'Updating last seen for user ' . $user->uid, NULL, WATCHDOG_DEBUG);
+			// watchdog('sptwofactor', 'Updating last seen for user ' . $user->uid, NULL, WATCHDOG_DEBUG);
 			return true;
 		}
 	}
@@ -52,7 +52,7 @@ function sptwofactor_check_auth() {
 	$user->data['sptwofactor_code'] = null;
 	user_save($user);
 
-	watchdog('sptwofactor', 'Redirecting user to user/smsauth', NULL, WATCHDOG_DEBUG);
+	watchdog('sptwofactor', 'Redirecting user from ' . ip_address() . ' to user/smsauth', NULL, WATCHDOG_DEBUG);
 	return drupal_goto('user/smsauth');
 }
 
@@ -351,12 +351,12 @@ function _spform_send_code($phoneNumber) {
 
 	switch ($output->item->resultcode) {
 		case 10:
-			watchdog('sptwofactor', 'Sent SMS', NULL, WATCHDOG_DEBUG);
+			watchdog('sptwofactor', 'Sent SMS to ' . $phoneNumber, NULL, WATCHDOG_DEBUG);
 			return true;
 			break;
 		default:
 			drupal_set_message("Er is een fout opgetreden bij het versturen van een login-sms. Resultaatcode was " . $output->item->resultcode . " - " . $output->item->resultmessage, 'error');
-			watchdog('sptwofactor', 'Could not send SMS! Error ' . $output->item->resultcode . ' - ' . $output->item->resultmessage, NULL, WATCHDOG_WARNING);
+			watchdog('sptwofactor', 'Could not send SMS to ' . $phoneNumber . '! Error ' . $output->item->resultcode . ' - ' . $output->item->resultmessage, NULL, WATCHDOG_WARNING);
 			return false;
 	}
 
