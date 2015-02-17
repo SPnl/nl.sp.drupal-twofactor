@@ -11,7 +11,7 @@
  */
 function sptwofactor_init() {
 
-	if (strpos(current_path(), 'civicrm') !== false) {
+	if (strpos(current_path(), 'civicrm') === 0 && (strpos(current_path(), 'event') === false || strpos(current_path(), 'event/manage') !== false)) {
 		sptwofactor_check_auth();
 	}
 }
