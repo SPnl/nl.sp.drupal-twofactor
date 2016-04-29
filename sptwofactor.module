@@ -282,40 +282,38 @@ function _sptwofactor_get_phonenumber() {
 
 	global $user;
 
-	if (!$user->data['sptwofactor_phone']) {
 
-		$api = _sptwofactor_civicrm_api();
-		$api->UFMatch->Getsingle([
-			'uf_id' => $user->uid,
+	$api = _sptwofactor_civicrm_api();
+	$api->UFMatch->Getsingle([
+		'uf_id' => $user->uid,
+	]);
+	$contact = $api->result();
+	if (!$contact || $contact->is_error) {
+		drupal_set_message('Two factor authentication niet mogelijk: geen CiviCRM-account voor deze gebruiker.', 'error');
+		return false;
+	} else {
+
+		$api->Phone->Get([
+			'contact_id'    => $contact->contact_id,
+			'phone_type_id' => 2,
 		]);
-		$contact = $api->result();
-		if (!$contact || $contact->is_error) {
-			drupal_set_message('Two factor authentication niet mogelijk: geen CiviCRM-account voor deze gebruiker.', 'error');
+		$phone = $api->result();
+		if (!$phone || $phone->is_error || $phone->count == 0) {
+			drupal_set_message('Two factor authentication niet mogelijk: geen mobiel nummer voor deze gebruiker.', 'error');
 			return false;
-		} else {
+		}
 
-			$api->Phone->Get([
-				'contact_id'    => $contact->contact_id,
-				'phone_type_id' => 2,
-			]);
-			$phone = $api->result();
-			if (!$phone || $phone->is_error || $phone->count == 0) {
-				drupal_set_message('Two factor authentication niet mogelijk: geen mobiel nummer voor deze gebruiker.', 'error');
-				return false;
-			}
-
-			foreach ($phone->values as $value) {
-				if ($value->phone_numeric) {
-					$phoneNumber = $value->phone_numeric;
-
-					$user->data['sptwofactor_phone'] = $phoneNumber;
-					user_save($user);
-				}
+		foreach ($phone->values as $value) {
+			if ($value->phone_numeric) {
+				$phoneNumber = $value->phone_numeric;
 			}
 		}
 	}
+	if (!empty($phoneNumber)) {
+		return $phoneNumber;
+	}	
 
-	return $user->data['sptwofactor_phone'];
+	return false;
 }
 
 /**
