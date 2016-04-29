@@ -45,8 +45,10 @@ function sptwofactor_check_auth() {
 
 	if (array_key_exists('sptwofactor_last_seen', $user->data)) {
 		$last_auth = $user->data['sptwofactor_last_seen'];
+		$last_login = $user->login;
 
-		if ($last_auth > (time() - variable_get('sptwofactor_validity'))) {
+		// Token is only valid when the sms token is not expired and when the token is issued after the last login.
+		if ($last_auth > (time() - variable_get('sptwofactor_validity')) && $last_login && ($last_login < $last_auth)) {
 			$user->data['sptwofactor_last_seen'] = time();
 			user_save($user);
 
