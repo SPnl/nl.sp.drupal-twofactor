@@ -1,6 +1,6 @@
 name = SP Drupal-Two Factor Authentication
 description = Two factor authentication voor CiviCRM op SPnet
-version = 1.0.3
+version = 1.0.4
 core = 7.x
 package = sprbs
 dependencies[] = civicrm

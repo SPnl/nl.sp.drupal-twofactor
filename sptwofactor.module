@@ -142,7 +142,7 @@ function sptwofactor_form($form, &$form_state) {
 				'#type'  => 'textfield',
 				'#title' => 'Transactiecode',
                                 '#attributes' => array('autofocus'=> NULL),
-                         );
+                        );
 
 			$form['sptwofactor_submit'] = array(
 				'#type'  => 'submit',
