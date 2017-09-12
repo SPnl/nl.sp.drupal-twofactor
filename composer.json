@@ -1,7 +1,6 @@
 {
   "name": "SPnl/nl.sp.drupal-twofactor",
   "description": "Two factor authentication voor CiviCRM op SPnet.",
-  "version": "1.0.1",
   "type": "drupal-module",
   "authors": [
     {
