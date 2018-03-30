@@ -93,13 +93,13 @@ function sptwofactor_menu() {
 		'type'             => MENU_NORMAL_ITEM,
 		'page callback'    => 'drupal_get_form',
 		'page arguments'   => array('sptwofactor_admin_settings_form'),
-		'access arguments' => array('access administration pages'),
+		'access arguments' => array('administer site configuration'),
 	);
 
 	$items['admin/config/sp/twofactor/settings'] = array(
 		'title'            => 'Instellingen',
 		'type'             => MENU_DEFAULT_LOCAL_TASK,
-		'access arguments' => array('access administration pages'),
+		'access arguments' => array('administer site configuration'),
 	);
 
 	return $items;
@@ -231,13 +231,13 @@ function sptwofactor_admin_settings_form() {
 		'#required'      => true,
 	];
 
-	$form['sptwofactor_allow_ip'] = [
-		'#type'          => 'textarea',
-		'#title'         => 'Uitgezonderde IP\'s',
-		'#default_value' => variable_get('sptwofactor_allow_ip', ''),
-		'#description'   => 'IP-adressen die uitgezonderd zijn van two factor authentication (een per regel)',
-		'#required'      => false,
-	];
+//	$form['sptwofactor_allow_ip'] = [
+//		'#type'          => 'textarea',
+//		'#title'         => 'Uitgezonderde IP\'s',
+//		'#default_value' => variable_get('sptwofactor_allow_ip', ''),
+//		'#description'   => 'IP-adressen die uitgezonderd zijn van two factor authentication (een per regel)',
+//		'#required'      => false,
+//	];
 
 	return system_settings_form($form);
 }
@@ -282,7 +282,6 @@ function _sptwofactor_ip_exception($ip) {
 function _sptwofactor_get_phonenumber() {
 
 	global $user;
-
 
 	$api = _sptwofactor_civicrm_api();
 	$api->UFMatch->Getsingle([
