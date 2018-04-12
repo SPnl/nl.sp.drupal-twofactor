@@ -45,8 +45,10 @@ function sptwofactor_check_auth() {
 
 	if (array_key_exists('sptwofactor_last_seen', $user->data)) {
 		$last_auth = $user->data['sptwofactor_last_seen'];
+		$last_login = $user->login;
 
-		if ($last_auth > (time() - variable_get('sptwofactor_validity'))) {
+		// Token is only valid when the sms token is not expired and when the token is issued after the last login.
+		if ($last_auth > (time() - variable_get('sptwofactor_validity')) && $last_login && ($last_login < $last_auth)) {
 			$user->data['sptwofactor_last_seen'] = time();
 			user_save($user);
 
@@ -91,13 +93,13 @@ function sptwofactor_menu() {
 		'type'             => MENU_NORMAL_ITEM,
 		'page callback'    => 'drupal_get_form',
 		'page arguments'   => array('sptwofactor_admin_settings_form'),
-		'access arguments' => array('access administration pages'),
+		'access arguments' => array('administer site configuration'),
 	);
 
 	$items['admin/config/sp/twofactor/settings'] = array(
 		'title'            => 'Instellingen',
 		'type'             => MENU_DEFAULT_LOCAL_TASK,
-		'access arguments' => array('access administration pages'),
+		'access arguments' => array('administer site configuration'),
 	);
 
 	return $items;
@@ -140,7 +142,7 @@ function sptwofactor_form($form, &$form_state) {
 				'#type'  => 'textfield',
 				'#title' => 'Transactiecode',
                                 '#attributes' => array('autofocus'=> NULL),
-			);
+                        );
 
 			$form['sptwofactor_submit'] = array(
 				'#type'  => 'submit',
@@ -229,13 +231,13 @@ function sptwofactor_admin_settings_form() {
 		'#required'      => true,
 	];
 
-	$form['sptwofactor_allow_ip'] = [
-		'#type'          => 'textarea',
-		'#title'         => 'Uitgezonderde IP\'s',
-		'#default_value' => variable_get('sptwofactor_allow_ip', ''),
-		'#description'   => 'IP-adressen die uitgezonderd zijn van two factor authentication (een per regel)',
-		'#required'      => false,
-	];
+//	$form['sptwofactor_allow_ip'] = [
+//		'#type'          => 'textarea',
+//		'#title'         => 'Uitgezonderde IP\'s',
+//		'#default_value' => variable_get('sptwofactor_allow_ip', ''),
+//		'#description'   => 'IP-adressen die uitgezonderd zijn van two factor authentication (een per regel)',
+//		'#required'      => false,
+//	];
 
 	return system_settings_form($form);
 }
@@ -280,7 +282,6 @@ function _sptwofactor_ip_exception($ip) {
 function _sptwofactor_get_phonenumber() {
 
 	global $user;
-
 
 	$api = _sptwofactor_civicrm_api();
 	$api->UFMatch->Getsingle([
