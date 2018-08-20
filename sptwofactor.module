@@ -11,7 +11,13 @@
  */
 function sptwofactor_init() {
 
-	if (strpos(current_path(), 'civicrm') === 0 && (strpos(current_path(), 'event') === false || strpos(current_path(), 'event/manage') !== false)) {
+  // Skip check for public events, but do not allow access to event/manage pages
+  if (strpos(current_path(), 'civicrm/event') === 0 && strpos(current_path(), 'civicrm/event/manage') === false) {
+    return true;
+  }
+
+  // Always use 2FA on Civi URLs
+	if (strpos(current_path(), 'civicrm') === 0) {
 		sptwofactor_check_auth();
 	}
 }
@@ -311,7 +317,7 @@ function _sptwofactor_get_phonenumber() {
 	}
 	if (!empty($phoneNumber)) {
 		return $phoneNumber;
-	}	
+	}
 
 	return false;
 }
