@@ -17,9 +17,9 @@ function sptwofactor_init() {
   }
 
   // Always use 2FA on Civi URLs
-	if (strpos(current_path(), 'civicrm') === 0) {
-		sptwofactor_check_auth();
-	}
+  if (strpos(current_path(), 'civicrm') === 0) {
+    sptwofactor_check_auth();
+  }
 }
 
 /**
@@ -28,46 +28,46 @@ function sptwofactor_init() {
  */
 function sptwofactor_check_auth() {
 
-	global $user;
+  global $user;
 
-	if(!$user || $user->uid == 0) {
-		// watchdog('sptwofactor', 'User not set, skipping two factor authentication', NULL, WATCHDOG_DEBUG);
-		return true;
-	}
+  if(!$user || $user->uid == 0) {
+    // watchdog('sptwofactor', 'User not set, skipping two factor authentication', NULL, WATCHDOG_DEBUG);
+    return true;
+  }
 
-	if (!variable_get('sptwofactor_enabled')) {
-		return true;
-	}
+  if (!variable_get('sptwofactor_enabled')) {
+    return true;
+  }
 
-	if (!user_access('access CiviCRM')) {
-		drupal_set_message('Je hebt geen toegang tot CiviCRM en kunt daarom niet inloggen.', 'error');
-		return false;
-	}
+  if (!user_access('access CiviCRM')) {
+    drupal_set_message('Je hebt geen toegang tot CiviCRM en kunt daarom niet inloggen.', 'error');
+    return false;
+  }
 
-	if (_sptwofactor_ip_exception(ip_address())) {
-		// watchdog('sptwofactor', 'IP exception for ' . ip_address() . ', skipping two factor authentication', NULL, WATCHDOG_DEBUG);
-		return true;
-	}
+  if (_sptwofactor_ip_exception(ip_address())) {
+    // watchdog('sptwofactor', 'IP exception for ' . ip_address() . ', skipping two factor authentication', NULL, WATCHDOG_DEBUG);
+    return true;
+  }
 
-	if (array_key_exists('sptwofactor_last_seen', $user->data)) {
-		$last_auth = $user->data['sptwofactor_last_seen'];
-		$last_login = $user->login;
+  if (array_key_exists('sptwofactor_last_seen', $user->data)) {
+    $last_auth = $user->data['sptwofactor_last_seen'];
+    $last_login = $user->login;
 
-		// Token is only valid when the sms token is not expired and when the token is issued after the last login.
-		if ($last_auth > (time() - variable_get('sptwofactor_validity')) && $last_login && ($last_login < $last_auth)) {
-			$user->data['sptwofactor_last_seen'] = time();
-			user_save($user);
+    // Token is only valid when the sms token is not expired and when the token is issued after the last login.
+    if ($last_auth > (time() - variable_get('sptwofactor_validity')) && $last_login && ($last_login < $last_auth)) {
+      $user->data['sptwofactor_last_seen'] = time();
+      user_save($user);
 
-			// watchdog('sptwofactor', 'Updating last seen for user ' . $user->uid, NULL, WATCHDOG_DEBUG);
-			return true;
-		}
-	}
+      // watchdog('sptwofactor', 'Updating last seen for user ' . $user->uid, NULL, WATCHDOG_DEBUG);
+      return true;
+    }
+  }
 
-	$user->data['sptwofactor_code'] = null;
-	user_save($user);
+  $user->data['sptwofactor_code'] = null;
+  user_save($user);
 
-	watchdog('sptwofactor', 'Redirecting user from ' . ip_address() . ' to user/smsauth', NULL, WATCHDOG_DEBUG);
-	return drupal_goto('user/smsauth');
+  watchdog('sptwofactor', 'Redirecting user from ' . ip_address() . ' to user/smsauth', NULL, WATCHDOG_DEBUG);
+  return drupal_goto('user/smsauth');
 }
 
 /**
@@ -76,39 +76,39 @@ function sptwofactor_check_auth() {
  */
 function sptwofactor_menu() {
 
-	$items = [];
+  $items = [];
 
-	$items['user/smsauth'] = array(
-		'title'           => 'SMS-authenticatie',
-		'page callback'   => 'drupal_get_form',
-		'page arguments'  => array('sptwofactor_form'),
-		'access arguments' => array('access content'),
-	);
+  $items['user/smsauth'] = array(
+    'title'           => 'SMS-authenticatie',
+    'page callback'   => 'drupal_get_form',
+    'page arguments'  => array('sptwofactor_form'),
+    'access arguments' => array('access content'),
+  );
 
-	$items['admin/config/sp'] = array(
-		'title'            => 'SP',
-		'description'      => 'SP-specifieke instellingen',
-		'weight'           => - 8,
-		'page callback'    => 'sptwofactor_admin_block',
-		'access arguments' => array('access administration pages'),
-	);
+  $items['admin/config/sp'] = array(
+    'title'            => 'SP',
+    'description'      => 'SP-specifieke instellingen',
+    'weight'           => - 8,
+    'page callback'    => 'sptwofactor_admin_block',
+    'access arguments' => array('access administration pages'),
+  );
 
-	$items['admin/config/sp/twofactor'] = array(
-		'title'            => 'Two Factor Authentication',
-		'description'      => 'Instellingen voor two factor authentication.',
-		'type'             => MENU_NORMAL_ITEM,
-		'page callback'    => 'drupal_get_form',
-		'page arguments'   => array('sptwofactor_admin_settings_form'),
-		'access arguments' => array('administer site configuration'),
-	);
+  $items['admin/config/sp/twofactor'] = array(
+    'title'            => 'Two Factor Authentication',
+    'description'      => 'Instellingen voor two factor authentication.',
+    'type'             => MENU_NORMAL_ITEM,
+    'page callback'    => 'drupal_get_form',
+    'page arguments'   => array('sptwofactor_admin_settings_form'),
+    'access arguments' => array('administer site configuration'),
+  );
 
-	$items['admin/config/sp/twofactor/settings'] = array(
-		'title'            => 'Instellingen',
-		'type'             => MENU_DEFAULT_LOCAL_TASK,
-		'access arguments' => array('administer site configuration'),
-	);
+  $items['admin/config/sp/twofactor/settings'] = array(
+    'title'            => 'Instellingen',
+    'type'             => MENU_DEFAULT_LOCAL_TASK,
+    'access arguments' => array('administer site configuration'),
+  );
 
-	return $items;
+  return $items;
 }
 
 /**
@@ -116,73 +116,73 @@ function sptwofactor_menu() {
  */
 function sptwofactor_form($form, &$form_state) {
 
-	$phoneNumber = _sptwofactor_get_phonenumber();
-	if (!$phoneNumber) {
+  $phoneNumber = _sptwofactor_get_phonenumber();
+  if (!$phoneNumber) {
 
-		$form['sptwofactor_description'] = [
-			'#markup' => 'Er is geen mobiel nummer van je bekend. Je kunt daarom niet inloggen.',
-		];
-		watchdog('sptwofactor', 'User cannot authenticate, no phone number set.', NULL, WATCHDOG_DEBUG);
+    $form['sptwofactor_description'] = [
+      '#markup' => 'Er is geen mobiel nummer van je bekend. Je kunt daarom niet inloggen.',
+    ];
+    watchdog('sptwofactor', 'User cannot authenticate, no phone number set.', NULL, WATCHDOG_DEBUG);
 
-	} else {
+  } else {
 
-		if (empty($_POST)) {
-			$status = _spform_send_code($phoneNumber);
-		} else {
-			$status = true;
-		}
+    if (empty($_POST)) {
+      $status = _spform_send_code($phoneNumber);
+    } else {
+      $status = true;
+    }
 
-		if (!$status) {
+    if (!$status) {
 
-			$form['sptwofactor_description'] = [
-				'#markup' => 'Er is een fout opgetreden bij het versturen van de transactiecode.',
-			];
+      $form['sptwofactor_description'] = [
+        '#markup' => 'Er is een fout opgetreden bij het versturen van de transactiecode.',
+      ];
 
-		} else {
+    } else {
 
-			$form['sptwofactor_description'] = array(
-				'#markup' => 'Vul de transactiecode in, die zojuist naar je mobiele telefoon (' . $phoneNumber . ') is gestuurd.',
-			);
+      $form['sptwofactor_description'] = array(
+        '#markup' => 'Vul de transactiecode in, die zojuist naar je mobiele telefoon (' . $phoneNumber . ') is gestuurd.',
+      );
 
-			$form['sptwofactor_code'] = array(
-				'#type'  => 'textfield',
-				'#title' => 'Transactiecode',
+      $form['sptwofactor_code'] = array(
+        '#type'  => 'textfield',
+        '#title' => 'Transactiecode',
                                 '#attributes' => array('autofocus'=> NULL),
                         );
 
-			$form['sptwofactor_submit'] = array(
-				'#type'  => 'submit',
-				'#value' => 'Inloggen',
-			);
-		}
-	}
+      $form['sptwofactor_submit'] = array(
+        '#type'  => 'submit',
+        '#value' => 'Inloggen',
+      );
+    }
+  }
 
-	return $form;
+  return $form;
 }
 
 function sptwofactor_form_submit($form, &$form_state) {
 
-	global $user;
-	$codeSaved = $user->data['sptwofactor_code'];
-	$codeEntered = $form_state['values']['sptwofactor_code'];
+  global $user;
+  $codeSaved = $user->data['sptwofactor_code'];
+  $codeEntered = $form_state['values']['sptwofactor_code'];
 
-	if (!$codeSaved) {
-		drupal_set_message('Er is een fout opgetreden: geen code bekend.', 'error');
-		watchdog('sptwofactor', 'Error: no code set', NULL, WATCHDOG_DEBUG);
-		return drupal_goto('user/smsauth');
-	}
+  if (!$codeSaved) {
+    drupal_set_message('Er is een fout opgetreden: geen code bekend.', 'error');
+    watchdog('sptwofactor', 'Error: no code set', NULL, WATCHDOG_DEBUG);
+    return drupal_goto('user/smsauth');
+  }
 
-	if ($codeSaved != trim($codeEntered)) {
-		drupal_set_message('De code die je hebt ingevoerd is niet geldig. Probeer het opnieuw.', 'error');
-		watchdog('sptwofactor', 'User entered invalid code (' . $codeSaved . ' vs ' . $codeEntered . ')', NULL, WATCHDOG_DEBUG);
-		return drupal_goto('user/smsauth');
-	}
+  if ($codeSaved != trim($codeEntered)) {
+    drupal_set_message('De code die je hebt ingevoerd is niet geldig. Probeer het opnieuw.', 'error');
+    watchdog('sptwofactor', 'User entered invalid code (' . $codeSaved . ' vs ' . $codeEntered . ')', NULL, WATCHDOG_DEBUG);
+    return drupal_goto('user/smsauth');
+  }
 
-	$user->data['sptwofactor_last_seen'] = time();
-	user_save($user);
+  $user->data['sptwofactor_last_seen'] = time();
+  user_save($user);
 
-	watchdog('sptwofactor', 'User entered valid code (' . $codeEntered . '), logging in', NULL, WATCHDOG_DEBUG);
-	drupal_goto('civicrm');
+  watchdog('sptwofactor', 'User entered valid code (' . $codeEntered . '), logging in', NULL, WATCHDOG_DEBUG);
+  drupal_goto('civicrm');
 }
 
 /**
@@ -191,61 +191,61 @@ function sptwofactor_form_submit($form, &$form_state) {
  */
 function sptwofactor_admin_settings_form() {
 
-	$form = [];
+  $form = [];
 
-	$form['sptwofactor_description'] = [
-		'#markup' => '<h3>Instellingen</h3><p>Stel hieronder two factor authentication voor CiviCRM in.<br />Deze module zorgt er op dit moment (alleen) voor dat voor alle URL\'s onder /civicrm/ SMS-authenticatie vereist is.</p>',
-	];
+  $form['sptwofactor_description'] = [
+    '#markup' => '<h3>Instellingen</h3><p>Stel hieronder two factor authentication voor CiviCRM in.<br />Deze module zorgt er op dit moment (alleen) voor dat voor alle URL\'s onder /civicrm/ SMS-authenticatie vereist is.</p>',
+  ];
 
-	$form['sptwofactor_enabled'] = [
-		'#type'          => 'checkbox',
-		'#title'         => 'SMS-authenticatie ingeschakeld',
-		'#default_value' => variable_get('sptwofactor_enabled', 1),
-		'#description'   => 'Schakel SMS-authenticatie in of uit voor de gehele site.',
-		'#required'      => false,
-	];
+  $form['sptwofactor_enabled'] = [
+    '#type'          => 'checkbox',
+    '#title'         => 'SMS-authenticatie ingeschakeld',
+    '#default_value' => variable_get('sptwofactor_enabled', 1),
+    '#description'   => 'Schakel SMS-authenticatie in of uit voor de gehele site.',
+    '#required'      => false,
+  ];
 
-	$form['sptwofactor_validity'] = [
-		'#type'          => 'textfield',
-		'#title'         => 'Tijdsduur',
-		'#default_value' => variable_get('sptwofactor_validity', 3600),
-		'#description'   => 'Na hoeveel seconden inactiviteit moet de gebruiker opnieuw authenticeren?',
-		'#required'      => true,
-	];
+  $form['sptwofactor_validity'] = [
+    '#type'          => 'textfield',
+    '#title'         => 'Tijdsduur',
+    '#default_value' => variable_get('sptwofactor_validity', 3600),
+    '#description'   => 'Na hoeveel seconden inactiviteit moet de gebruiker opnieuw authenticeren?',
+    '#required'      => true,
+  ];
 
-	$form['sptwofactor_sms_url'] = [
-		'#type'          => 'textfield',
-		'#title'         => 'API URL',
-		'#default_value' => variable_get('sptwofactor_sms_url', 'https://api.messagebird.com/xml/sms/'),
-		'#description'   => 'API endpoint voor de SMS-dienst',
-		'#required'      => true,
-	];
+  $form['sptwofactor_sms_url'] = [
+    '#type'          => 'textfield',
+    '#title'         => 'API URL',
+    '#default_value' => variable_get('sptwofactor_sms_url', 'https://api.messagebird.com/xml/sms/'),
+    '#description'   => 'API endpoint voor de SMS-dienst',
+    '#required'      => true,
+  ];
 
-	$form['sptwofactor_sms_user'] = [
-		'#type'          => 'textfield',
-		'#title'         => 'Gebruikersnaam',
-		'#default_value' => variable_get('sptwofactor_sms_user', 'systeembeheersp'),
-		'#description'   => 'Gebruikersnaam voor de SMS-dienst',
-		'#required'      => true,
-	];
+  $form['sptwofactor_sms_user'] = [
+    '#type'          => 'textfield',
+    '#title'         => 'Gebruikersnaam',
+    '#default_value' => variable_get('sptwofactor_sms_user', 'systeembeheersp'),
+    '#description'   => 'Gebruikersnaam voor de SMS-dienst',
+    '#required'      => true,
+  ];
 
-	$form['sptwofactor_sms_pass'] = [
-		'#type'          => 'textfield',
-		'#title'         => 'Wachtwoord',
-		'#default_value' => variable_get('sptwofactor_sms_pass', ''),
-		'#description'   => 'Wachtwoord voor de SMS-dienst',
-		'#required'      => true,
-	];
+  $form['sptwofactor_sms_pass'] = [
+    '#type'          => 'textfield',
+    '#title'         => 'Wachtwoord',
+    '#default_value' => variable_get('sptwofactor_sms_pass', ''),
+    '#description'   => 'Wachtwoord voor de SMS-dienst',
+    '#required'      => true,
+  ];
 
-//	$form['sptwofactor_allow_ip'] = [
-//		'#type'          => 'textarea',
-//		'#title'         => 'Uitgezonderde IP\'s',
-//		'#default_value' => variable_get('sptwofactor_allow_ip', ''),
-//		'#description'   => 'IP-adressen die uitgezonderd zijn van two factor authentication (een per regel)',
-//		'#required'      => false,
-//	];
+//  $form['sptwofactor_allow_ip'] = [
+//    '#type'          => 'textarea',
+//    '#title'         => 'Uitgezonderde IP\'s',
+//    '#default_value' => variable_get('sptwofactor_allow_ip', ''),
+//    '#description'   => 'IP-adressen die uitgezonderd zijn van two factor authentication (een per regel)',
+//    '#required'      => false,
+//  ];
 
-	return system_settings_form($form);
+  return system_settings_form($form);
 }
 
 /**
@@ -253,10 +253,10 @@ function sptwofactor_admin_settings_form() {
  * @return civicrm_api3 CiviCRM API
  */
 function _sptwofactor_civicrm_api() {
-	civicrm_initialize();
-	require_once 'api/class.api.php';
+  civicrm_initialize();
+  require_once 'api/class.api.php';
 
-	return new civicrm_api3;
+  return new civicrm_api3;
 }
 
 /**
@@ -268,17 +268,17 @@ function _sptwofactor_civicrm_api() {
  */
 function _sptwofactor_ip_exception($ip) {
 
-	$ips_allowed = variable_get('sptwofactor_allow_ip');
+  $ips_allowed = variable_get('sptwofactor_allow_ip');
 
-	if (!$ips_allowed)
-		return false;
-	$ips_allowed = explode("\n", $ips_allowed);
-	foreach ($ips_allowed as $ip_allowed) {
-		if (trim($ip_allowed) == $ip)
-			return true;
-	}
+  if (!$ips_allowed)
+    return false;
+  $ips_allowed = explode("\n", $ips_allowed);
+  foreach ($ips_allowed as $ip_allowed) {
+    if (trim($ip_allowed) == $ip)
+      return true;
+  }
 
-	return false;
+  return false;
 }
 
 /**
@@ -287,39 +287,39 @@ function _sptwofactor_ip_exception($ip) {
  */
 function _sptwofactor_get_phonenumber() {
 
-	global $user;
+  global $user;
 
-	$api = _sptwofactor_civicrm_api();
-	$api->UFMatch->Getsingle([
-		'uf_id' => $user->uid,
-	]);
-	$contact = $api->result();
-	if (!$contact || $contact->is_error) {
-		drupal_set_message('Two factor authentication niet mogelijk: geen CiviCRM-account voor deze gebruiker.', 'error');
-		return false;
-	} else {
+  $api = _sptwofactor_civicrm_api();
+  $api->UFMatch->Getsingle([
+    'uf_id' => $user->uid,
+  ]);
+  $contact = $api->result();
+  if (!$contact || $contact->is_error) {
+    drupal_set_message('Two factor authentication niet mogelijk: geen CiviCRM-account voor deze gebruiker.', 'error');
+    return false;
+  } else {
 
-		$api->Phone->Get([
-			'contact_id'    => $contact->contact_id,
-			'phone_type_id' => 2,
-		]);
-		$phone = $api->result();
-		if (!$phone || $phone->is_error || $phone->count == 0) {
-			drupal_set_message('Two factor authentication niet mogelijk: geen mobiel nummer voor deze gebruiker.', 'error');
-			return false;
-		}
+    $api->Phone->Get([
+      'contact_id'    => $contact->contact_id,
+      'phone_type_id' => 2,
+    ]);
+    $phone = $api->result();
+    if (!$phone || $phone->is_error || $phone->count == 0) {
+      drupal_set_message('Two factor authentication niet mogelijk: geen mobiel nummer voor deze gebruiker.', 'error');
+      return false;
+    }
 
-		foreach ($phone->values as $value) {
-			if ($value->phone_numeric) {
-				$phoneNumber = $value->phone_numeric;
-			}
-		}
-	}
-	if (!empty($phoneNumber)) {
-		return $phoneNumber;
-	}
+    foreach ($phone->values as $value) {
+      if ($value->phone_numeric) {
+        $phoneNumber = $value->phone_numeric;
+      }
+    }
+  }
+  if (!empty($phoneNumber)) {
+    return $phoneNumber;
+  }
 
-	return false;
+  return false;
 }
 
 /**
@@ -331,45 +331,45 @@ function _sptwofactor_get_phonenumber() {
  */
 function _spform_send_code($phoneNumber) {
 
-	global $user;
+  global $user;
 
-	$url = variable_get('sptwofactor_sms_url');
-	$smsuser = variable_get('sptwofactor_sms_user');
-	$smspass = variable_get('sptwofactor_sms_pass');
+  $url = variable_get('sptwofactor_sms_url');
+  $smsuser = variable_get('sptwofactor_sms_user');
+  $smspass = variable_get('sptwofactor_sms_pass');
 
-	if (!$url || !$smsuser || !$smspass) {
-		drupal_set_message('Two factor authentication is niet ingesteld.', 'error');
-		watchdog('sptwofactor', 'Two factor authentication has not been configured.', NULL, WATCHDOG_WARNING);
-		return false;
-	}
+  if (!$url || !$smsuser || !$smspass) {
+    drupal_set_message('Two factor authentication is niet ingesteld.', 'error');
+    watchdog('sptwofactor', 'Two factor authentication has not been configured.', NULL, WATCHDOG_WARNING);
+    return false;
+  }
 
-	$code = $user->data['sptwofactor_code'];
-	if (!$code) {
-		$code = mt_rand(100000, 999999);
+  $code = $user->data['sptwofactor_code'];
+  if (!$code) {
+    $code = mt_rand(100000, 999999);
 
-		$user->data['sptwofactor_code'] = $code;
-		user_save($user);
-	}
+    $user->data['sptwofactor_code'] = $code;
+    user_save($user);
+  }
 
-	// Mollie API, zie docs
-	$params = "username=" . $smsuser . "&md5_password=" . $smspass . "&originator=SPnet&recipients=" . $phoneNumber . "&message=Je transactiecode is: " . $code . "&gateway=1";
-	$ch = curl_init();
-	curl_setopt($ch, CURLOPT_URL, $url);
-	curl_setopt($ch, CURLOPT_POST, true);
-	curl_setopt($ch, CURLOPT_POSTFIELDS, $params);
-	curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-	$output = simplexml_load_string(curl_exec($ch));
-	curl_close($ch);
+  // Mollie API, zie docs
+  $params = "username=" . $smsuser . "&md5_password=" . $smspass . "&originator=SPnet&recipients=" . $phoneNumber . "&message=Je transactiecode is: " . $code . "&gateway=1";
+  $ch = curl_init();
+  curl_setopt($ch, CURLOPT_URL, $url);
+  curl_setopt($ch, CURLOPT_POST, true);
+  curl_setopt($ch, CURLOPT_POSTFIELDS, $params);
+  curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+  $output = simplexml_load_string(curl_exec($ch));
+  curl_close($ch);
 
-	switch ($output->item->resultcode) {
-		case 10:
-			watchdog('sptwofactor', 'Sent SMS to ' . $phoneNumber, NULL, WATCHDOG_DEBUG);
-			return true;
-			break;
-		default:
-			drupal_set_message("Er is een fout opgetreden bij het versturen van een login-sms. Resultaatcode was " . $output->item->resultcode . " - " . $output->item->resultmessage, 'error');
-			watchdog('sptwofactor', 'Could not send SMS to ' . $phoneNumber . '! Error ' . $output->item->resultcode . ' - ' . $output->item->resultmessage, NULL, WATCHDOG_WARNING);
-			return false;
-	}
+  switch ($output->item->resultcode) {
+    case 10:
+      watchdog('sptwofactor', 'Sent SMS to ' . $phoneNumber, NULL, WATCHDOG_DEBUG);
+      return true;
+      break;
+    default:
+      drupal_set_message("Er is een fout opgetreden bij het versturen van een login-sms. Resultaatcode was " . $output->item->resultcode . " - " . $output->item->resultmessage, 'error');
+      watchdog('sptwofactor', 'Could not send SMS to ' . $phoneNumber . '! Error ' . $output->item->resultcode . ' - ' . $output->item->resultmessage, NULL, WATCHDOG_WARNING);
+      return false;
+  }
 
 }
