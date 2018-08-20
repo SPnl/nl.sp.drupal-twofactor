@@ -17,7 +17,11 @@ function sptwofactor_init() {
   }
 
   // Always use 2FA on Civi URLs
-  if (strpos(current_path(), 'civicrm') === 0) {
+  if (strpos(current_path(), 'civicrm') === 0 || (strpos(current_path(), 'oauth2/authorize') === 0 && (strpos($_GET['client_id'], 'spork') !== false))) {
+    sptwofactor_check_auth();
+  }
+
+  if (strpos(current_path(), 'oauth2/authorize') === 0 && isset($_SESSION['sporkredirect'])) {
     sptwofactor_check_auth();
   }
 }
@@ -29,6 +33,10 @@ function sptwofactor_init() {
 function sptwofactor_check_auth() {
 
   global $user;
+
+  if (strpos($_GET['client_id'], 'spork') !== false) {
+    $_SESSION['sporkredirect'] = $_GET['redirect_uri'];
+  }
 
   if(!$user || $user->uid == 0) {
     // watchdog('sptwofactor', 'User not set, skipping two factor authentication', NULL, WATCHDOG_DEBUG);
@@ -67,6 +75,13 @@ function sptwofactor_check_auth() {
   user_save($user);
 
   watchdog('sptwofactor', 'Redirecting user from ' . ip_address() . ' to user/smsauth', NULL, WATCHDOG_DEBUG);
+
+  if (isset($_SESSION['sporkredirect'])) {
+    return drupal_goto('user/smsauth',  array(
+        'query' => array(
+          'redirect' => $_SESSION['sporkredirect'])
+      ));
+  }
   return drupal_goto('user/smsauth');
 }
 
@@ -154,6 +169,10 @@ function sptwofactor_form($form, &$form_state) {
         '#type'  => 'submit',
         '#value' => 'Inloggen',
       );
+
+      if (isset($_SESSION['sporkredirect'])) {
+        $form['#spork_redirect'] = $_SESSION['sporkredirect'];
+      }
     }
   }
 
@@ -182,7 +201,13 @@ function sptwofactor_form_submit($form, &$form_state) {
   user_save($user);
 
   watchdog('sptwofactor', 'User entered valid code (' . $codeEntered . '), logging in', NULL, WATCHDOG_DEBUG);
-  drupal_goto('civicrm');
+  if (isset($form['#spork_redirect'])) {
+    drupal_goto('https://' . parse_url($form['#spork_redirect'], PHP_URL_HOST));
+    unset($_SESSION['sporkredirect']);
+  }
+  else {
+    drupal_goto('civicrm');
+  }
 }
 
 /**
