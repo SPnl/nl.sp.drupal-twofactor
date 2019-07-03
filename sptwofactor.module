@@ -356,7 +356,7 @@ function _sptwofactor_get_phonenumber() {
 function _spform_send_code($phoneNumber) {
 
   global $user;
-  
+
   $url = variable_get('sptwofactor_sms_url');
   $smsuser = variable_get('sptwofactor_sms_user');
   $smspass = variable_get('sptwofactor_sms_pass');
