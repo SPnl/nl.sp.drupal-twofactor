@@ -34,8 +34,8 @@ function sptwofactor_check_auth() {
 
   global $user;
 
-  if (strpos($_GET['client_id'], 'spork') !== false) {
-    $_SESSION['sporkredirect'] = $_GET['redirect_uri'];
+  if (!variable_get('sptwofactor_enabled')) {
+    return true;
   }
 
   if(!$user || $user->uid == 0) {
@@ -43,8 +43,8 @@ function sptwofactor_check_auth() {
     return true;
   }
 
-  if (!variable_get('sptwofactor_enabled')) {
-    return true;
+  if (strpos($_GET['client_id'], 'spork') !== false) {
+    $_SESSION['sporkredirect'] = $_GET['redirect_uri'];
   }
 
   if (!user_access('access CiviCRM')) {
