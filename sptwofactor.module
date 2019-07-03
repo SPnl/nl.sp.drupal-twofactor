@@ -34,27 +34,29 @@ function sptwofactor_check_auth() {
 
   global $user;
 
+  // Check if twofactor authentication is enabled, if not, skip it.
   if (!variable_get('sptwofactor_enabled')) {
-    return true;
+    return;
   }
 
+  // Check if user is logged in, if not skip twofactor auth.
   if(!$user || $user->uid == 0) {
-    // watchdog('sptwofactor', 'User not set, skipping two factor authentication', NULL, WATCHDOG_DEBUG);
-    return true;
+    return;
   }
 
-  if (strpos($_GET['client_id'], 'spork') !== false) {
-    $_SESSION['sporkredirect'] = $_GET['redirect_uri'];
-  }
-
+  // Show message to users that have no CiviCRM access, skip two factor auth.
   if (!user_access('access CiviCRM')) {
     drupal_set_message('Je hebt geen toegang tot CiviCRM en kunt daarom niet inloggen.', 'error');
-    return false;
+    return;
   }
 
   if (_sptwofactor_ip_exception(ip_address())) {
-    // watchdog('sptwofactor', 'IP exception for ' . ip_address() . ', skipping two factor authentication', NULL, WATCHDOG_DEBUG);
-    return true;
+    return;
+  }
+
+  // Store spork redirect url.
+  if (strpos($_GET['client_id'], 'spork') !== false) {
+    $_SESSION['sporkredirect'] = $_GET['redirect_uri'];
   }
 
   if (array_key_exists('sptwofactor_last_seen', $user->data)) {
@@ -66,15 +68,12 @@ function sptwofactor_check_auth() {
       $user->data['sptwofactor_last_seen'] = time();
       user_save($user);
 
-      // watchdog('sptwofactor', 'Updating last seen for user ' . $user->uid, NULL, WATCHDOG_DEBUG);
-      return true;
+      return;
     }
   }
 
   $user->data['sptwofactor_code'] = null;
   user_save($user);
-
-  watchdog('sptwofactor', 'Redirecting user from ' . ip_address() . ' to user/smsauth', NULL, WATCHDOG_DEBUG);
 
   if (isset($_SESSION['sporkredirect'])) {
     return drupal_goto('user/smsauth',  array(
