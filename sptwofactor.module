@@ -357,7 +357,7 @@ function _sptwofactor_get_phonenumber() {
 function _spform_send_code($phoneNumber) {
 
   global $user;
-
+  
   $url = variable_get('sptwofactor_sms_url');
   $smsuser = variable_get('sptwofactor_sms_user');
   $smspass = variable_get('sptwofactor_sms_pass');
@@ -366,6 +366,12 @@ function _spform_send_code($phoneNumber) {
     drupal_set_message('Two factor authentication is niet ingesteld.', 'error');
     watchdog('sptwofactor', 'Two factor authentication has not been configured.', NULL, WATCHDOG_WARNING);
     return false;
+  }
+
+  # Check if sms already send last five minutes.
+  if (!empty($_SESSION['sptwofactor']) && !empty($_SESSION['sptwofactor']['sms_send']) && time() - $_SESSION['sptwofactor']['sms_send'] < 60) {
+    watchdog('sptwofactor', 'Not resending SMS within 1 minute to ' . $phoneNumber, NULL, WATCHDOG_DEBUG);
+    return true;
   }
 
   $code = $user->data['sptwofactor_code'];
@@ -389,6 +395,8 @@ function _spform_send_code($phoneNumber) {
   switch ($output->item->resultcode) {
     case 10:
       watchdog('sptwofactor', 'Sent SMS to ' . $phoneNumber, NULL, WATCHDOG_DEBUG);
+      # Store time sms send.
+      $_SESSION['sptwofactor']['sms_send'] = time();
       return true;
       break;
     default:
