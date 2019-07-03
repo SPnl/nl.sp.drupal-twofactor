@@ -34,27 +34,33 @@ function sptwofactor_check_auth() {
 
   global $user;
 
-  if (strpos($_GET['client_id'], 'spork') !== false) {
-    $_SESSION['sporkredirect'] = $_GET['redirect_uri'];
-  }
-
-  if(!$user || $user->uid == 0) {
-    // watchdog('sptwofactor', 'User not set, skipping two factor authentication', NULL, WATCHDOG_DEBUG);
-    return true;
-  }
-
+  # If two factor authentication is not enabeld, skip two factor authentication.
   if (!variable_get('sptwofactor_enabled')) {
     return true;
   }
 
+  # If no user logged in, no two factor authentication.
+  if(!$user || $user->uid == 0) {
+    return;
+  }
+
+  # Skip two factor authentication on ajax requests.
+  if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+    return;
+  }
+
+  # Store redirect for spork in session.
+  if (strpos($_GET['client_id'], 'spork') !== false) {
+    $_SESSION['sporkredirect'] = $_GET['redirect_uri'];
+  }
+
   if (!user_access('access CiviCRM')) {
     drupal_set_message('Je hebt geen toegang tot CiviCRM en kunt daarom niet inloggen.', 'error');
-    return false;
+    return;
   }
 
   if (_sptwofactor_ip_exception(ip_address())) {
-    // watchdog('sptwofactor', 'IP exception for ' . ip_address() . ', skipping two factor authentication', NULL, WATCHDOG_DEBUG);
-    return true;
+    return;
   }
 
   if (array_key_exists('sptwofactor_last_seen', $user->data)) {
@@ -66,8 +72,7 @@ function sptwofactor_check_auth() {
       $user->data['sptwofactor_last_seen'] = time();
       user_save($user);
 
-      // watchdog('sptwofactor', 'Updating last seen for user ' . $user->uid, NULL, WATCHDOG_DEBUG);
-      return true;
+      return;
     }
   }
 
