@@ -367,9 +367,16 @@ function _spform_send_code($phoneNumber) {
     return false;
   }
 
-  # Check if sms already send last five minutes.
+  # Check ajax request.
+  if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+    watchdog('sptwofactor', 'Not sending SMS on ajax request.', NULL, WATCHDOG_DEBUG);
+    return true;
+  }
+
+  # Check if sms already send last 1 minute.
   if (!empty($_SESSION['sptwofactor']) && !empty($_SESSION['sptwofactor']['sms_send']) && time() - $_SESSION['sptwofactor']['sms_send'] < 60) {
     watchdog('sptwofactor', 'Not resending SMS within 1 minute to ' . $phoneNumber, NULL, WATCHDOG_DEBUG);
+    drupal_set_message('Er is zojuist een sms naar u gestuurd. Ontvangt u deze niet, probeer het dan over een paar minuten nog eens, dan sturen we een nieuwe sms.');
     return true;
   }
 
